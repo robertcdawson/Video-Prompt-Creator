@@ -4,7 +4,7 @@ A responsive web application designed to optimize video prompts for state-of-the
 
 Built with **React**, **Vite**, **Tailwind CSS**, and powered by Google's **Gemini 2.5 Pro** model.
 
-![App Screenshot](https://via.placeholder.com/800x450.png?text=Video+Prompt+Creator+Screenshot)
+![App Screenshot](./public/app-screenshot.png)
 
 ## Features
 
