@@ -4,8 +4,9 @@ import { PromptInput } from './components/PromptInput';
 import { PromptTemplate } from './components/PromptTemplate';
 import { SettingsModal } from './components/SettingsModal';
 import { StyleSelector } from './components/StyleSelector';
+import { HistorySidebar } from './components/HistorySidebar';
+import { CustomStyleModal } from './components/CustomStyleModal';
 import { generateVideoPrompt } from './services/gemini';
-import { PROMPT_FLAVORS } from './utils/promptTemplates';
 
 /**
  * Main Application Component
@@ -15,20 +16,79 @@ import { PROMPT_FLAVORS } from './utils/promptTemplates';
  * - User input and selected style
  * - Interaction with the Gemini service
  * - Displaying results and errors
+ * - Prompt History
  */
 function App() {
   const [apiKey, setApiKey] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [prompt, setPrompt] = useState('');
-  const [selectedStyle, setSelectedStyle] = useState<keyof typeof PROMPT_FLAVORS | null>(null);
-  const [result, setResult] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [userIdea, setUserIdea] = useState('');
+  const [generatedPrompt, setGeneratedPrompt] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Style State - Relaxed type to allow custom strings
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  const [customStyles, setCustomStyles] = useState<Array<{ id: string; label: string; description: string }>>([]);
+  const [isCustomStyleModalOpen, setIsCustomStyleModalOpen] = useState(false);
+
+  // History State
+  const [history, setHistory] = useState<any[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) setApiKey(storedKey);
+
+    const storedHistory = localStorage.getItem('prompt_history');
+    if (storedHistory) {
+      try {
+        setHistory(JSON.parse(storedHistory));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+
+    const storedCustomStyles = localStorage.getItem('custom_styles');
+    if (storedCustomStyles) {
+      try {
+        setCustomStyles(JSON.parse(storedCustomStyles));
+      } catch (e) {
+        console.error("Failed to parse custom styles", e);
+      }
+    }
   }, []);
+
+  const handleSaveCustomStyle = (name: string, description: string) => {
+    const newStyle = {
+      id: `CUSTOM_${Date.now()}`,
+      label: name,
+      description: description
+    };
+    const updatedStyles = [...customStyles, newStyle];
+    setCustomStyles(updatedStyles);
+    localStorage.setItem('custom_styles', JSON.stringify(updatedStyles));
+    setSelectedStyle(newStyle.id); // Auto-select new style
+  };
+
+  const saveToHistory = (prompt: string, style: string) => {
+    const newItem = {
+      id: Date.now().toString(),
+      prompt, // We save the RESULT prompt, or maybe the input? Let's save the result for now as that's what users want to recall.
+      // Actually, saving the INPUT might be better for "Remixing", but saving the OUTPUT is better for "Copying again".
+      // Let's save the output prompt for now as the primary value.
+      timestamp: Date.now(),
+      style: style || 'Auto'
+    };
+
+    const newHistory = [newItem, ...history].slice(0, 10); // Keep last 10
+    setHistory(newHistory);
+    localStorage.setItem('prompt_history', JSON.stringify(newHistory));
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('prompt_history');
+  };
 
   const handleSaveKey = (key: string) => {
     setApiKey(key);
@@ -41,103 +101,169 @@ function App() {
       return;
     }
 
-    setIsGenerating(true);
-    setError(null);
+    setIsLoading(true);
+    setError('');
+
     try {
-      const optimizedPrompt = await generateVideoPrompt(prompt, apiKey, selectedStyle);
-      setResult(optimizedPrompt);
+      // Check if selected style is a custom one
+      const customStyle = customStyles.find(s => s.id === selectedStyle);
+
+      // If it's a custom style, we might need to pass the description to Gemini
+      // The current generateVideoPrompt expects a keyof PROMPT_FLAVORS or null.
+      // We need to update generateVideoPrompt to accept custom instructions too.
+      // For now, let's pass the ID, and we'll update gemini.ts next.
+
+      const result = await generateVideoPrompt(userIdea, apiKey, selectedStyle, customStyle?.description);
+      setGeneratedPrompt(result);
+      saveToHistory(result, customStyle ? customStyle.label : (selectedStyle || 'Auto'));
     } catch (err) {
-      console.error(err);
-      setError('Failed to generate prompt. Please check your API key and try again.');
+      setError(err instanceof Error ? err.message : 'An error occurred while generating the prompt');
     } finally {
-      setIsGenerating(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-w-screen min-h-screen bg-[#0a0a0a] text-white p-8 font-sans selection:bg-blue-500/30 relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white selection:bg-purple-500/30">
       {/* Aurora Background Effects */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse delay-1000" />
-        <div className="absolute top-[40%] left-[50%] transform -translate-x-1/2 w-[30%] h-[30%] bg-emerald-500/10 rounded-full blur-[100px] animate-pulse delay-2000" />
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px] animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
       </div>
 
-      <div className="max-w-[1800px] mx-auto space-y-8 relative z-10">
-        {/* Header */}
-        <header className="flex justify-between items-center border-b border-white/5 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
-              <Video className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60 tracking-tight">
-                Video Prompt Creator
-              </h1>
-              <p className="text-sm text-white/40 font-medium">Optimize prompts for Veo 3 & Sora 2</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white/60 hover:text-white transition-all duration-300"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-        </header>
-
-        {/* Main Content */}
-        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          {/* Left Column: Input & Controls */}
-          <div className="space-y-8">
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium text-white/60">
-                  <Sparkles className="w-4 h-4 text-blue-400" />
-                  <span>Select Style (Optional)</span>
-                </div>
+      <div className="relative z-10">
+        <nav className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg">
+                <Video className="w-5 h-5 text-white" />
               </div>
-              <StyleSelector selectedStyle={selectedStyle} onSelect={setSelectedStyle} />
+              <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70">
+                VideoPrompt<span className="font-light">Creator</span>
+              </span>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
+        </nav>
 
-              <PromptInput
-                value={prompt}
-                onChange={setPrompt}
-                onOptimize={handleOptimize}
-                isGenerating={isGenerating}
+        <HistorySidebar
+          history={history}
+          isOpen={isHistoryOpen}
+          onToggle={() => setIsHistoryOpen(!isHistoryOpen)}
+          onSelect={(item) => {
+            setGeneratedPrompt(item.prompt);
+            // Optionally set the style too if we saved it?
+            // setSelectedStyle(item.style as any); 
+            setIsHistoryOpen(false);
+          }}
+          onClear={handleClearHistory}
+        />
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+
+            {/* Left Column: Input & Controls */}
+            <div className="space-y-8">
+              <div className="space-y-2">
+                <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
+                  Create <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Cinematic</span> Video Prompts
+                </h1>
+                <p className="text-lg text-gray-400 max-w-xl">
+                  Transform your ideas into professional, detailed prompts for Veo 3, Sora 2, and other AI video models.
+                </p>
+              </div>
+
+              <StyleSelector
+                selectedStyle={selectedStyle}
+                onSelect={setSelectedStyle}
+                customStyles={customStyles}
+                onAddCustom={() => setIsCustomStyleModalOpen(true)}
               />
-            </section>
 
-            {error && (
-              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                {error}
+              <div className="bg-gray-900/50 backdrop-blur-sm p-1 rounded-2xl border border-white/10 shadow-xl">
+                <PromptInput
+                  value={userIdea}
+                  onChange={setUserIdea}
+                  onOptimize={handleOptimize}
+                  isGenerating={isLoading}
+                />
               </div>
-            )}
-          </div>
 
-          {/* Right Column: Output */}
-          <div className="lg:sticky lg:top-8 min-h-[200px]">
-            {result ? (
-              <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <PromptTemplate content={result} />
-              </section>
-            ) : (
-              <div className="hidden lg:flex h-full min-h-[400px] items-center justify-center border border-white/5 rounded-xl bg-white/5 border-dashed text-white/20">
-                <div className="text-center space-y-2">
-                  <Sparkles className="w-8 h-8 mx-auto opacity-50" />
-                  <p className="text-sm font-medium">Optimized prompt will appear here</p>
+              {error && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                  {error}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Right Column: Output (Sticky on Desktop) */}
+            <div className="lg:sticky lg:top-24 space-y-6">
+              {generatedPrompt ? (
+                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                  <div className="flex items-center gap-2 mb-4 text-purple-400">
+                    <Sparkles className="w-5 h-5" />
+                    <span className="text-sm font-medium uppercase tracking-wider">Optimized Result</span>
+                  </div>
+                  <PromptTemplate
+                    content={generatedPrompt}
+                    onRemix={(instruction) => {
+                      // For remixing, we append the instruction to the user idea and re-optimize
+                      // Ideally, we'd send the *previous output* + instruction, but the current API structure
+                      // is simpler if we just append to the input. 
+                      // BETTER APPROACH: Let's append to the userIdea state so the user sees it, 
+                      // then trigger optimization? Or just trigger it internally?
+                      // Let's trigger internally for a smoother flow.
+                      const newIdea = `${userIdea} (Make it ${instruction})`;
+                      setUserIdea(newIdea);
+                      // We can't easily auto-trigger optimize here because state updates are async.
+                      // Let's just update the input and let the user click optimize, OR
+                      // we can call the API directly.
+                      // Let's call API directly for "Magic" feel.
+                      setIsLoading(true);
+
+                      // Check for custom style
+                      const customStyle = customStyles.find(s => s.id === selectedStyle);
+
+                      generateVideoPrompt(newIdea, apiKey, selectedStyle, customStyle?.description)
+                        .then(result => {
+                          setGeneratedPrompt(result);
+                          saveToHistory(result, customStyle ? customStyle.label : (selectedStyle || 'Auto'));
+                        })
+                        .catch(err => setError(err.message))
+                        .finally(() => setIsLoading(false));
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="h-[400px] flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.02]">
+                  <Sparkles className="w-12 h-12 mb-4 opacity-20" />
+                  <p className="text-sm font-medium">Your optimized prompt will appear here</p>
+                </div>
+              )}
+            </div>
+
           </div>
         </main>
-      </div>
 
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        apiKey={apiKey}
-        onSave={handleSaveKey}
-      />
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          apiKey={apiKey}
+          onSave={handleSaveKey}
+        />
+
+        <CustomStyleModal
+          isOpen={isCustomStyleModalOpen}
+          onClose={() => setIsCustomStyleModalOpen(false)}
+          onSave={handleSaveCustomStyle}
+        />
+      </div>
     </div>
   );
 }

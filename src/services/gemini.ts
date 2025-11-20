@@ -49,32 +49,43 @@ If a field is not applicable, make a creative choice that elevates the concept.
 
 /**
  * Generates an optimized video prompt using Google's Gemini API.
- * 
+ *
  * @param userIdea - The raw video concept provided by the user.
  * @param apiKey - The user's Gemini API key.
  * @param style - Optional specific style flavor to force (Cinematic, Product, Social).
  * @returns A promise that resolves to the optimized prompt string.
  */
-export const generateVideoPrompt = async (userIdea: string, apiKey: string, style: keyof typeof PROMPT_FLAVORS | null = null) => {
+export const generateVideoPrompt = async (
+  userIdea: string,
+  apiKey: string,
+  style: string | null = null,
+  customStyleDescription?: string
+): Promise<string> => {
   if (!apiKey) {
     throw new Error("API Key is required");
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-
-  let finalInstruction = SYSTEM_INSTRUCTION;
-
-  // If a specific style is selected, we override the "Analyze" step to force that style
-  if (style) {
-    finalInstruction += `\n\nIMPORTANT: The user has explicitly selected the "${style}" style. Skip the analysis step and strictly apply the ${style} flavor defined above.`;
-  }
-
   const model = genAI.getGenerativeModel({
     model: MODEL_NAME,
-    systemInstruction: finalInstruction
+    systemInstruction: SYSTEM_INSTRUCTION
   });
 
-  const result = await model.generateContent(userIdea);
+  let prompt = `User Idea: ${userIdea}`;
+
+  // Apply Style Flavor
+  if (style) {
+    if (customStyleDescription) {
+      // Custom Style Logic
+      prompt += `\n\nAPPLY CUSTOM STYLE: ${style}\nStyle Instructions: ${customStyleDescription}\n\nEnsure the output strictly adheres to these style instructions while maintaining the required format.`;
+    } else if (style in PROMPT_FLAVORS) {
+      // Predefined Style Logic
+      const flavor = PROMPT_FLAVORS[style as keyof typeof PROMPT_FLAVORS];
+      prompt += `\n\nAPPLY STYLE: ${style}\nFocus on: ${flavor.focus}\nKey Elements: ${flavor.keywords.join(', ')}`;
+    }
+  }
+
+  const result = await model.generateContent(prompt);
   const response = await result.response;
   return response.text();
 };
