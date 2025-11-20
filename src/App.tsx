@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings, Video, Sparkles } from 'lucide-react';
 import { PromptInput } from './components/PromptInput';
 import { PromptTemplate } from './components/PromptTemplate';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Clapperboard, Package, Smartphone } from 'lucide-react';
 import { PROMPT_FLAVORS } from '../utils/promptTemplates';
 

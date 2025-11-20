@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Copy, Check, Terminal } from 'lucide-react';
 
 interface PromptTemplateProps {
@@ -6,7 +6,7 @@ interface PromptTemplateProps {
 }
 
 export const PromptTemplate: React.FC<PromptTemplateProps> = ({ content }) => {
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
