@@ -70,6 +70,17 @@ function App() {
     setSelectedStyle(newStyle.id); // Auto-select new style
   };
 
+  const handleDeleteCustomStyle = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent selection when deleting
+    const updatedStyles = customStyles.filter(s => s.id !== id);
+    setCustomStyles(updatedStyles);
+    localStorage.setItem('custom_styles', JSON.stringify(updatedStyles));
+
+    if (selectedStyle === id) {
+      setSelectedStyle(null);
+    }
+  };
+
   const saveToHistory = (prompt: string, style: string) => {
     const newItem = {
       id: Date.now().toString(),
@@ -184,6 +195,7 @@ function App() {
                 onSelect={setSelectedStyle}
                 customStyles={customStyles}
                 onAddCustom={() => setIsCustomStyleModalOpen(true)}
+                onDeleteCustom={handleDeleteCustomStyle}
               />
 
               <div className="bg-gray-900/50 backdrop-blur-sm p-1 rounded-2xl border border-white/10 shadow-xl">
@@ -262,6 +274,7 @@ function App() {
           isOpen={isCustomStyleModalOpen}
           onClose={() => setIsCustomStyleModalOpen(false)}
           onSave={handleSaveCustomStyle}
+          apiKey={apiKey}
         />
       </div>
     </div>

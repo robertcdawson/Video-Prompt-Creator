@@ -89,3 +89,36 @@ export const generateVideoPrompt = async (
   const response = await result.response;
   return response.text();
 };
+
+const STYLE_OPTIMIZER_INSTRUCTION = `
+You are an expert visual style consultant for AI video generation.
+Your goal is to take a user's brief style name and rough description and expand it into a rich, evocative, and technically precise visual style definition.
+
+Input:
+- Style Name: [e.g. "Cyberpunk"]
+- Description: [e.g. "Neon lights, dark, rain"]
+
+Output:
+- A single, comprehensive paragraph describing the visual style.
+- Include details on: Lighting, Color Palette, Atmosphere, Camera/Lens characteristics, and Textures.
+- Do NOT include "Scene" or "Subject" details, only the *aesthetic* style.
+- Keep it under 100 words.
+`;
+
+export const optimizeStyleDescription = async (
+  styleName: string,
+  rawDescription: string,
+  apiKey: string
+): Promise<string> => {
+  if (!apiKey) throw new Error("API Key is required");
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+    systemInstruction: STYLE_OPTIMIZER_INSTRUCTION
+  });
+
+  const prompt = `Style Name: ${styleName}\nDescription: ${rawDescription}`;
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+};

@@ -1,75 +1,88 @@
-import { Clapperboard, Package, Smartphone, Plus, Palette } from 'lucide-react';
+import { Clapperboard, Package, Smartphone, Plus, Palette, Trash2 } from 'lucide-react';
 
 interface StyleSelectorProps {
   selectedStyle: string | null;
   onSelect: (style: string | null) => void;
   customStyles?: Array<{ id: string; label: string; description: string }>;
   onAddCustom?: () => void;
+  onDeleteCustom?: (id: string, e: React.MouseEvent) => void;
 }
 
-export const StyleSelector: React.FC<StyleSelectorProps> = ({ selectedStyle, onSelect, customStyles = [], onAddCustom }) => {
-  const defaultStyles = [
-    { id: 'CINEMATIC', label: 'Cinematic', icon: Clapperboard, color: 'from-blue-500 to-purple-600' },
-    { id: 'PRODUCT', label: 'Product', icon: Package, color: 'from-emerald-500 to-teal-600' },
-    { id: 'SOCIAL', label: 'Social', icon: Smartphone, color: 'from-orange-500 to-pink-600' },
+export function StyleSelector({
+  selectedStyle,
+  onSelect,
+  customStyles = [],
+  onAddCustom,
+  onDeleteCustom
+}: StyleSelectorProps) {
+  const styles = [
+    { id: 'CINEMATIC', label: 'Cinematic', icon: Clapperboard },
+    { id: 'PRODUCT', label: 'Product', icon: Package },
+    { id: 'SOCIAL', label: 'Social', icon: Smartphone },
   ];
 
   return (
-    <div className="flex flex-wrap gap-3">
-      {defaultStyles.map((style) => {
-        const isSelected = selectedStyle === style.id;
-        const Icon = style.icon;
-
-        return (
+    <div className="space-y-3">
+      <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+        Style Flavor
+      </label>
+      <div className="flex flex-wrap gap-3">
+        {styles.map((style) => (
           <button
             key={style.id}
-            onClick={() => onSelect(isSelected ? null : style.id)}
+            onClick={() => onSelect(selectedStyle === style.id ? null : style.id)}
             className={`
-              relative group flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-300
-              ${isSelected
-                ? `bg-gradient-to-r ${style.color} border-transparent text-white shadow-lg`
-                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20 hover:text-white'}
+              group relative flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200
+              ${selectedStyle === style.id
+                ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]'
+                : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
+              }
             `}
           >
-            <Icon className={`w-4 h-4 ${isSelected ? 'animate-pulse' : ''}`} />
-            <span className="font-medium text-sm">{style.label}</span>
-            {isSelected && (
-              <span className="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-20" />
+            <style.icon className={`w-4 h-4 ${selectedStyle === style.id ? 'text-black' : 'text-gray-400 group-hover:text-white'}`} />
+            <span className="font-medium">{style.label}</span>
+          </button>
+        ))}
+
+        {/* Custom Styles */}
+        {customStyles.map((style) => (
+          <button
+            key={style.id}
+            onClick={() => onSelect(selectedStyle === style.id ? null : style.id)}
+            className={`
+              group relative flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 pr-2
+              ${selectedStyle === style.id
+                ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-white border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+                : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
+              }
+            `}
+          >
+            <Palette className={`w-4 h-4 ${selectedStyle === style.id ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'}`} />
+            <span className="font-medium">{style.label}</span>
+
+            {onDeleteCustom && (
+              <div
+                onClick={(e) => onDeleteCustom(style.id, e)}
+                className="ml-1 p-1.5 rounded-full hover:bg-red-500/20 hover:text-red-400 text-gray-500 transition-colors"
+                title="Delete Style"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </div>
             )}
           </button>
-        );
-      })}
+        ))}
 
-      {/* Custom Styles */}
-      {customStyles.map((style) => {
-        const isSelected = selectedStyle === style.id;
-        return (
+        {/* Add Custom Button */}
+        {onAddCustom && (
           <button
-            key={style.id}
-            onClick={() => onSelect(isSelected ? null : style.id)}
-            className={`
-              relative group flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-300
-              ${isSelected
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 border-transparent text-white shadow-lg'
-                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20 hover:text-white'}
-            `}
+            onClick={onAddCustom}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-white/20 text-gray-500 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all duration-200"
           >
-            <Palette className={`w-4 h-4 ${isSelected ? 'animate-pulse' : ''}`} />
-            <span className="font-medium text-sm">{style.label}</span>
+            <Plus className="w-4 h-4" />
+            <span className="font-medium">Add Style</span>
           </button>
-        );
-      })}
-
-      {/* Add New Button */}
-      {onAddCustom && (
-        <button
-          onClick={onAddCustom}
-          className="flex items-center gap-2 px-4 py-2 rounded-full border border-dashed border-white/20 text-white/40 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="font-medium text-sm">Add Style</span>
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
-};
+}
